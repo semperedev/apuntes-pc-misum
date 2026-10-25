@@ -6,7 +6,7 @@ title: "Boletín 6: Despliegue con Ansible"
 
 > **OBJETIVO**
 >
-> Hasta ahora el pipeline construye, valida y publica una imagen Docker en ghcr, pero nadie la ejecuta en ningún sitio. En esta sesión usarás Ansible para desplegar automáticamente esa imagen sobre una pequeña flota de máquinas —dos corriendo la aplicación, otra la base de datos— y dejarla corriendo.
+> Hasta ahora el pipeline construye, valida y publica una imagen Docker en ghcr, pero nadie la ejecuta en ningún sitio. En esta sesión usarás Ansible para desplegar automáticamente esa imagen sobre una pequeña flota de máquinas y dejarla corriendo.
 
 ## 1. Objetivos de la sesión
 
@@ -23,7 +23,7 @@ Ansible es una herramienta de automatización de configuración y despliegue. De
 
 ### 2.2 Por qué "agentless"
 
-Ansible no necesita instalar nada permanente en la máquina destino: se conecta por SSH y ejecuta las acciones de forma remota. Solo necesitas Ansible en tu máquina (el "controlador") y acceso SSH al servidor.
+Ansible no necesita instalar nada permanente en la máquina destino. Se conecta por SSH y ejecuta las acciones de forma remota. Solo se necesita tener instalado Ansible en tu máquina (el "controlador") y acceso SSH al servidor.
 
 ### 2.3 Vocabulario esencial
 
@@ -43,23 +43,22 @@ Ansible no necesita instalar nada permanente en la máquina destino: se conecta 
 
 ### 2.4 Nunca despliegues por "latest"
 
-Es el error más común y el más caro. Si el playbook despliega `:latest` no puedes responder a la pregunta *"¿qué versión está corriendo?"*, no puedes reproducir un despliegue pasado y no puedes volver atrás. Además destruye la idempotencia real: cada ejecución tiene que ir al registro a comprobar si `latest` cambió. Desplegaremos siempre por un tag que no sea `:latest` (`1.2.0` o `sha-abc1234`).
+Es el error más común y el más caro. Si el playbook despliega `:latest` no puedes responder a la pregunta *"¿qué versión está corriendo?"*, no puedes reproducir un despliegue pasado y no puedes volver atrás. Además destruye la idempotencia real ya que cada ejecución tiene que ir al registro a comprobar si `latest` cambió. Desplegaremos siempre por un tag que no sea `:latest` (`1.2.0` o `sha-abc1234`).
 
 ## 3. Trabajo práctico
 
 ### Parte A — Instalar Ansible y sus dependencias
 
-- Instala Ansible en tu máquina (el controlador):
+- Instala [Ansible](https://docs.ansible.com/projects/ansible/latest/installation_guide/intro_installation.html#pipx-install) versión 2.16.x. (por ejemplo, con `apt` se puede instalar la 2.16.3 en Ubuntu 24.04):
 
 ```bash
-sudo apt update && sudo apt install -y ansible
 ansible --version
 ```
 
-- Instala la **collection** que aporta los módulos de Docker.
+- Instala la collection que aporta los módulos de Docker.
 
 ```bash
-ansible-galaxy collection install community.docker
+ansible-galaxy collection install community.docker:3.7.0
 ```
 
 - Declara la dependencia en el repositorio para que sea reproducible, en `deploy/requirements.yml`:
@@ -67,7 +66,7 @@ ansible-galaxy collection install community.docker
 ```yaml
 collections:
   - name: community.docker
-    version: ">=3.4.0"
+    version: "3.7.0"
 # se instala con:  ansible-galaxy collection install -r deploy/requirements.yml
 ```
 
@@ -118,7 +117,7 @@ docker compose -f deploy/servidores/docker-compose.yml up -d
 ssh root@localhost -p 2223   # app1 (contraseña: root)
 ssh root@localhost -p 2224   # app2
 ssh root@localhost -p 2225   # db1
-# importante, prueba los tres
+# importante, prueba que el ssh funciona en los tres
 ```
 
 ### Parte C — El inventario
@@ -160,7 +159,7 @@ Debes ver `pong` desde `app1`, `app2` y `db1`: Ansible ya controla la flota.
 
 ### Parte D — El playbook de despliegue
 
-Crea `deploy/deploy.yml`. Instala Docker en toda la flota, despliega la base de datos en `db` y, por último, la aplicación en `app` apuntando a la base de datos por el nombre de su host. Tienes que cambiar `ghcr.io/TU_USUARIO/tareas-api` por tu usuario de GitHub y el nombre de la imagen que publicaste en el Boletín 5.
+Crea `deploy/deploy.yml` que instala Docker en toda la flota, despliega la base de datos en `db` y, por último, la aplicación en `app` apuntando a la base de datos por el nombre de su host. Tienes que cambiar `ghcr.io/TU_USUARIO/tareas-api` por tu usuario de GitHub y el nombre de la imagen que publicaste en el Boletín 5.
 
 ```yaml
 - name: Preparar Docker en toda la flota
@@ -246,11 +245,11 @@ Crea `deploy/deploy.yml`. Instala Docker en toda la flota, despliega la base de 
 
 > **OJO**
 >
-> Cada "ordenador" es a su vez un contenedor con su propio Docker dentro (Docker-in-Docker). `network_mode: host` hace que el contenedor de dentro comparta la red de la máquina que lo aloja: así puede resolver el nombre de otro host del inventario (`db1`) igual que lo resuelve la propia máquina, y su puerto queda expuesto directamente en ella. Sin esto, el contenedor de la API viviría en una red interna aislada del contenedor de la base de datos y jamás la encontraría.
+> Cada "ordenador" es a su vez un contenedor con su propio Docker dentro (Docker-in-Docker). `network_mode: host` hace que el contenedor de dentro comparta la red de la máquina que lo aloja. De esta forma, el contenedor puede resolver el nombre de otro host del inventario (`db1`) igual que lo resuelve la propia máquina, y su puerto queda expuesto directamente en ella. Sin esto, el contenedor de la API viviría en una red interna aislada del contenedor de la base de datos y jamás la encontraría.
 
 > **OJO**
 >
-> Las credenciales (`ghcr_token`, `db_name`, `db_user`, `db_pass`, ...) **nunca** se escriben en el playbook ni se pasan por `--extra-vars` en la línea de comandos (quedan en el historial de tu shell y en la tabla de procesos). Usa Ansible Vault en local y secrets desde el CI. 
+> Las credenciales (`ghcr_token`, `db_name`, `db_user`, `db_pass`, ...) **nunca** se escriben en el playbook ni se pasan por `--extra-vars` en la línea de comandos (quedan en el historial de tu shell y en la tabla de procesos). Usa Ansible Vault en local y secrets desde las pipelines. 
 
 
 ### Parte E — Proteger las credenciales con Ansible Vault
@@ -298,7 +297,7 @@ curl http://localhost:8082/api/tasks   # app2
 ### Parte G — Disparar el despliegue desde GitHub Actions (cierre CD)
 
 
-Ahora automatizas el despliegue: cada vez que publiques una versión (`vX.Y.Z`), GitHub Actions construirá la imagen y, a continuación, ejecutará Ansible **desde tu propio ordenador**. Como las "máquinas" de la flota son contenedores que viven en tu portátil (`localhost:2223`…), un runner de GitHub en la nube no podría llegar a ellas: necesitas un **runner autoalojado** (*self-hosted*), es decir, un programa que instalas en tu máquina y que recibe trabajos de GitHub.
+Ahora automatizas el despliegue. Cada vez que publiques una versión (`vX.Y.Z`), GitHub Actions construirá la imagen y, a continuación, ejecutará Ansible desde tu propio ordenador. Como las "máquinas" de la flota son contenedores que viven en tu portátil (`localhost:2223`...), un runner de GitHub en la nube no podría llegar a ellas y necesitas un **runner autoalojado** (*self-hosted*), es decir, un programa que instalas en tu máquina y que recibe trabajos de GitHub.
 
 #### G.1 — Registrar tu ordenador como runner
 
@@ -319,18 +318,15 @@ mkdir actions-runner && cd actions-runner
 - Comprueba que en **Settings → Actions → Runners** aparece como **Idle**.
 - El runner ejecuta los comandos con tu usuario, así que necesita lo mismo que usaste a mano en la Parte F: `ansible`, `sshpass` y la flota levantada.
 
-> **OJO**
->
-> Un runner autoalojado ejecuta en **tu máquina** el código de los workflows. En un repositorio público, cualquiera podría proponer un PR que lo abuse. Úsalo solo en un repositorio **privado**, o en uno público donde en *Settings → Actions → General* exijas aprobación para los PR de colaboradores externos. Y no lo dejes encendido más tiempo del necesario.
 
 #### G.2 — Entorno protegido y secreto del Vault
 
 - **Settings → Environments → New environment**, llámalo `produccion` y añade al menos un **Required reviewer**. Cualquier job que declare `environment: produccion` se quedará esperando esa aprobación antes de arrancar.
-- Dentro de ese entorno, añade un secret `VAULT_PASS` con la contraseña maestra de tu Ansible Vault (Parte E). 
+- Dentro de ese entorno, añade un secret `VAULT_PASS` con la contraseña maestra de tu Ansible Vault. 
 
 #### G.3 — Ampliar el `release.yml`
 
-Amplía el `.github/workflows/release.yml` que escribiste en el [Boletín 5](boletin5-cd-github-actions.html). Mantén tal cual el job `publish`, salvo la línea `outputs`, que es nueva y permite al siguiente job saber qué versión se publicó, y añade debajo el job `deploy`. El fichero completo queda así:
+Amplía el `.github/workflows/release.yml` que escribiste en el [Boletín 5](boletin5-cd-github-actions.html). Mantén tal cual el job `publish`, salvo la línea `outputs`, que es nueva y permite al siguiente job saber qué versión se publicó, y añade debajo el job `deploy`. El fichero completo quedaría a algo similar a esto:
 
 ```yaml
 name: Release

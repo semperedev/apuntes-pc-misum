@@ -6,10 +6,11 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "dev": "npm run build && npx serve _site"
+    "dev": "node scripts/watch.mjs"
   },
   "devDependencies": {
     "@marp-team/marp-cli": "^4.5.0",
+    "chokidar": "^4.0.3",
     "front-matter": "^4.0.2",
     "github-markdown-css": "^5.8.1",
     "highlight.js": "^11.10.0",

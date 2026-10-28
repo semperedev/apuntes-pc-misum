@@ -523,6 +523,12 @@ async function buildPracticas() {
   const outDir = path.join(SITE, 'practicas')
   await fs.mkdir(outDir, { recursive: true })
 
+  // Los boletines usan rutas relativas a assets/; conserva su estructura al publicarlos.
+  const assetsSrc = path.join(PRACTICAS_SRC, 'assets')
+  if (existsSync(assetsSrc)) {
+    await copyDir(assetsSrc, path.join(outDir, 'assets'))
+  }
+
   const manifest = []
   for (const file of files) {
     const slug = file.replace(/\.md$/, '')

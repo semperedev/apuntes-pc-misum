@@ -6,7 +6,6 @@ Sitio web de la asignatura, publicado con **GitHub Pages** y desplegado automát
 - Los **boletines de prácticas** (boletín 0 de guía + 7 sesiones + proyecto), en Markdown normal (documento, no diapositivas).
 - Un selector web sencillo para elegir qué tema o práctica ver.
 
-
 ---
 
 ## Estructura del repositorio
@@ -97,7 +96,8 @@ Para cambiar el aspecto visual (colores, tipografía) de **todas** las diapositi
 
 3. Escribir el contenido en Markdown normal (no es una presentación: se renderiza como un documento con estilo GitHub). Se recomienda mantener la misma estructura que los boletines existentes: **Objetivos**, **Relación con el temario**, **Contexto**, **Tareas**, **Entregables**, **Criterios de evaluación**.
 4. Para enlazar a un tema de teoría desde un boletín: `[Tema N](../slides/temaN-slug.html)`.
-5. Hacer commit y push a `main`. Aparecerá automáticamente en la sección "Prácticas" del menú.
+5. Para añadir imágenes, guardarlas en `content/practicas/assets/` y enlazarlas con una ruta relativa: `![Descripción](assets/boletinN/imagen.png)`. Para controlar su tamaño, usar HTML: `<img src="assets/boletinN/imagen.png" alt="Descripción" width="480">`.
+6. Hacer commit y push a `main`. Aparecerá automáticamente en la sección "Prácticas" del menú.
 
 ---
 
